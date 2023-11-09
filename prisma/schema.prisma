@@ -1,0 +1,42 @@
+generator client { 
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url = env("POSTGRES_PRISMA_URL")
+    directUrl = env("POSTGRES_URL_NON_POOLING")
+}
+
+model Unit {
+    id              Int         @id @default(autoincrement())
+    name            String
+    tier            Int
+    traits          Trait[]
+    games           Game[]
+    headliner       Headliner[] @relation("Unit")
+}
+
+model Headliner { // Relation
+    id              Int         @id @default(autoincrement())
+    unit            Unit        @relation("Unit", fields: [unitId], references: [id])
+    unitId          Int
+    game            Game        @relation("Game", fields: [gameId], references: [id])
+    gameId          Int         @unique
+}
+
+model Trait {
+    id              Int         @id @default(autoincrement())
+    name            String
+    intervals       Int[]
+    units           Unit[]
+    games           Game[]
+}
+
+model Game {
+    id              Int         @id @default(autoincrement())
+    notes           String
+    units           Unit[]
+    headliner       Headliner?  @relation("Game")
+    activeTraits    Trait[]
+}
