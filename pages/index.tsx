@@ -3,6 +3,8 @@ import { GetStaticProps } from "next"
 import Layout from "../components/Layout"
 import Post, { PostProps } from "../components/Post"
 
+import prisma from '../lib/prisma';
+
 export const getStaticProps: GetStaticProps = async () => {
   const feed = [
     {
@@ -16,10 +18,19 @@ export const getStaticProps: GetStaticProps = async () => {
       },
     },
   ]
+
+  const oneCosts = await prisma.unit.findMany({
+    where: { tier: 1 }
+  });
+
+  console.log(oneCosts);
+  
   return { 
     props: { feed }, 
     revalidate: 10 
   }
+
+
 }
 
 type Props = {

@@ -13,16 +13,26 @@ model Unit {
     name            String
     tier            Int
     traits          Trait[]
-    games           Game[]
-    headliner       Headliner[] @relation("Unit")
+    headliner       Headliner[] @relation("Headliner")
+    gameUnit        GameUnit[] @relation("GameUnit")
 }
 
 model Headliner { // Relation
     id              Int         @id @default(autoincrement())
-    unit            Unit        @relation("Unit", fields: [unitId], references: [id])
+    unit            Unit        @relation("Headliner", fields: [unitId], references: [id])
     unitId          Int
     game            Game        @relation("Game", fields: [gameId], references: [id])
     gameId          Int         @unique
+    trait           Trait       @relation("Trait", fields: [traitId], references: [id])
+    traitId         Int
+}
+
+model GameUnit { // Relation
+    id              Int         @id @default(autoincrement())
+    unit            Unit        @relation("GameUnit", fields: [unitId], references: [id])
+    unitId          Int
+    game            Game        @relation("Game", fields: [gameId], references: [id])
+    gameId          Int
 }
 
 model Trait {
@@ -31,12 +41,22 @@ model Trait {
     intervals       Int[]
     units           Unit[]
     games           Game[]
+    headliner       Headliner[] @relation("Trait")
+}
+
+model Augment {
+    id              Int         @id @default(autoincrement())
+    name            String
+    games           Game[]
 }
 
 model Game {
     id              Int         @id @default(autoincrement())
     notes           String
-    units           Unit[]
     headliner       Headliner?  @relation("Game")
+    gameUnits       GameUnit[]  @relation("Game")
     activeTraits    Trait[]
+    patch           String
+    augments        Augment[]
+    placement       Int
 }
