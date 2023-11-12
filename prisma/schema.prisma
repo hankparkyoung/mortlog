@@ -50,6 +50,13 @@ model Augment {
     games           Game[]
 }
 
+model Portal {
+    id              Int         @id @default(autoincrement())
+    name            String
+    games           Game[]      @relation("Game")
+    gameId          Int
+}
+
 model Game {
     id              Int         @id @default(autoincrement())
     notes           String
@@ -59,4 +66,6 @@ model Game {
     patch           String
     augments        Augment[]
     placement       Int
+    portal          Portal       @relation("Game", fields: [portalId], references: [id])
+    portalId        Int
 }
