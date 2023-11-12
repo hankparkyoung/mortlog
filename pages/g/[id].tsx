@@ -2,39 +2,35 @@ import React from "react"
 import { GetServerSideProps } from "next"
 import ReactMarkdown from "react-markdown"
 import Layout from "../../components/Layout"
-import { PostProps } from "../../components/Post"
+import { GameProps } from "../../components/Game"
+
+import prisma from '../../lib/prisma';
 
 export const getServerSideProps: GetServerSideProps = async ({ params }) => {
-  const post = {
-    id: "1",
-    title: "Prisma is the perfect ORM for Next.js",
-    content: "[Prisma](https://github.com/prisma/prisma) and Next.js go _great_ together!",
-    published: false,
-    author: {
-      name: "Nikolas Burk",
-      email: "burk@prisma.io",
-    },
-  }
+  const game = await prisma.game.findUnique({
+    where: {
+      id: +params.id,
+    }
+  })
   return {
-    props: post,
+    props: game,
   }
 }
 
-const Post: React.FC<PostProps> = (props) => {
-  let title = props.title
-  if (!props.published) {
-    title = `${title} (Draft)`
-  }
+const Game: React.FC<GameProps> = (props) => {
+  const headlinerName = props.headliner
+    ? `${props.headliner.trait.name} ${props.headliner.unit.name}`
+    : "No headliner";
 
   return (
     <Layout>
       <div>
-        <h2>{title}</h2>
-        <p>By {props?.author?.name || "Unknown author"}</p>
-        <ReactMarkdown children={props.content} />
+        <h2>{headlinerName}</h2>
+        <p>Placement: {props.placement}</p>
+        <ReactMarkdown children={props.notes} />
       </div>
       <style jsx>{`
-        .page {
+        .game {
           background: white;
           padding: 2rem;
         }
@@ -58,4 +54,4 @@ const Post: React.FC<PostProps> = (props) => {
   )
 }
 
-export default Post
+export default Game

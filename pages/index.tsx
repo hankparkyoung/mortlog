@@ -1,57 +1,38 @@
 import React from "react"
 import { GetStaticProps } from "next"
 import Layout from "../components/Layout"
-import Post, { PostProps } from "../components/Post"
+import Game, { GameProps } from "../components/Game"
 
 import prisma from '../lib/prisma';
 
+
 export const getStaticProps: GetStaticProps = async () => {
-  const feed = [
-    {
-      id: "1",
-      title: "Prisma is the perfect ORM for Next.js",
-      content: "[Prisma](https://github.com/prisma/prisma) and Next.js go _great_ together!",
-      published: false,
-      author: {
-        name: "Nikolas Burk",
-        email: "burk@prisma.io",
-      },
-    },
-  ]
+  const log = await prisma.game.findMany();
 
-  const oneCosts = await prisma.unit.findMany({
-    where: { tier: 1 }
-  });
-
-  console.log(oneCosts);
-  
-  return { 
-    props: { feed }, 
-    revalidate: 10 
+  return {
+    props: { log },
   }
-
-
 }
 
 type Props = {
-  feed: PostProps[]
+  log: GameProps[]
 }
 
-const Blog: React.FC<Props> = (props) => {
+const Log: React.FC<Props> = (props) => {
   return (
     <Layout>
       <div className="page">
-        <h1>Public Feed</h1>
+        <h1>Game Logs</h1>
         <main>
-          {props.feed.map((post) => (
-            <div key={post.id} className="post">
-              <Post post={post} />
+          {props.log.map((game) => (
+            <div key={game.id} className="game">
+              <Game game={game} />
             </div>
           ))}
         </main>
       </div>
       <style jsx>{`
-        .post {
+        .game {
           background: white;
           transition: box-shadow 0.1s ease-in;
         }
@@ -68,4 +49,4 @@ const Blog: React.FC<Props> = (props) => {
   )
 }
 
-export default Blog
+export default Log
