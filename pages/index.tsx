@@ -5,9 +5,25 @@ import Game, { GameProps } from "../components/Game"
 
 import prisma from '../lib/prisma';
 
-
 export const getStaticProps: GetStaticProps = async () => {
-  const log = await prisma.game.findMany();
+  const log = await prisma.game.findMany({
+    include: {
+      gameUnits: {
+        select: {
+          unit: {
+            select: {
+              name: true,
+              traits: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
 
   return {
     props: { log },

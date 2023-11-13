@@ -17,6 +17,7 @@ export type GameProps = {
 };
 
 const Game: React.FC<{ game: GameProps }> = ({ game }) => {
+  console.log(game);
   const headlinerName = game.headliner
     ? `${game.headliner.trait.name} ${game.headliner.unit.name}`
     : "No headliner";
