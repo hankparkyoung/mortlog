@@ -14,6 +14,7 @@ router.get('/', async (_, res) => {
   }
 });
 
+// GET /trait by id
 router.get('/:traitId', async (req, res) => {
   try {
     const { traitId } = req.params;

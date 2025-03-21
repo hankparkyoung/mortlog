@@ -6,6 +6,7 @@ import units from './routes/units.js';
 import traits from './routes/traits.js';
 import encounters from './routes/encounters.js';
 import hacks from './routes/hacks.js';
+import games from './routes/games.js';
 
 const app = express();
 const PORT = process.env.PORT || 4242;
@@ -16,6 +17,7 @@ app.use('/units', units);
 app.use('/traits', traits);
 app.use('/encounters', encounters);
 app.use('/hacks', hacks);
+app.use('/games', games);
 
 app.get('/', async (_, res) => {
   try {
