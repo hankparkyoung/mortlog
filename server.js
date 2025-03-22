@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import express from 'express';
+import cors from 'cors';
 import { neon } from '@neondatabase/serverless';
 
 import units from './routes/units.js';
@@ -11,7 +12,11 @@ import games from './routes/games.js';
 const app = express();
 const PORT = process.env.PORT || 4242;
 app.use(express.json());
-
+app.use(cors());
+app.use((_, res, next) => {
+  res.setHeader('Content-Type', 'application/json');
+  next();
+});
 
 app.use('/units', units);
 app.use('/traits', traits);
