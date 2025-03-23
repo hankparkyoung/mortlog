@@ -8,6 +8,7 @@ import traits from './routes/traits.js';
 import encounters from './routes/encounters.js';
 import hacks from './routes/hacks.js';
 import games from './routes/games.js';
+import traitBreakpoints from './routes/traitBreakpoints.js';
 
 const app = express();
 const PORT = process.env.PORT || 4242;
@@ -23,6 +24,7 @@ app.use('/traits', traits);
 app.use('/encounters', encounters);
 app.use('/hacks', hacks);
 app.use('/games', games);
+app.use('/trait-breakpoints', traitBreakpoints);
 
 app.get('/', async (_, res) => {
   try {
