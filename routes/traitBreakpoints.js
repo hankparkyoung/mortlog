@@ -22,11 +22,14 @@ router.get('/with-names', async (_, res) => {
         t.trait_id,
         t.trait_name,
         tb.breakpoint_value,
+        tb.breakpoint_tier,
         tb.trait_id
       FROM
         trait_breakpoints tb
       JOIN
         traits t on tb.trait_id = t.trait_id
+      ORDER BY
+        tb.breakpoint_id ASC;
     `;
     res.json(response);
   } catch (error) {
