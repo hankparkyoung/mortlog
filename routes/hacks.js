@@ -6,7 +6,11 @@ const router = express.Router();
 router.get('/', async (_, res) => {
   try {
     const sql = neon(process.env.DATABASE_URL);
-    const response = await sql`SELECT * FROM hacks`;
+    const response = await sql`
+      SELECT *
+      FROM hacks
+      ORDER BY hack_name ASC
+    `;
     res.json(response);
   } catch (error) {
     console.error('Error getting hacks:', error);
