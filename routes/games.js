@@ -13,106 +13,154 @@ router.get('/', async (_, res) => {
   }
 });
 
-// todo - query games via:
-// - patch
-// - hack
-// - encounter
-// - unit
-// - trait
-
 router.post('/', async (req, res) => {
+  const {
+    patch,
+    notes,
+    encounter_id,
+    hack_ids,
+    augments,
+    unit_ids
+  } = req.body;
+
+  const validationError = (message) => {
+    return res.status(400).json({ error: message });
+  };
+
+  // validations
+  if (!patch) return validationError(
+    'patch is required'
+  );
+  if (!notes) return validationError(
+    'notes are required'
+  );
+  if (!encounter_id) return validationError(
+    'encounter_id is required'
+  );
+  if (!hack_ids || !Array.isArray(hack_ids) || hack_ids.length === 0) {
+    return validationError('hack_ids is a required non-empty array');
+  };
+  if (!augments || !Array.isArray(augments) || augments.length === 0) {
+    return validationError('augments is a required non-empty array');
+  };
+  for (const augment of augments) {
+    if (!augment.game_stage || !augment.augment_id) {
+      return validationError('augments must have game_stage and augment_id');
+    };
+  };
+  if (!unit_ids || !Array.isArray(unit_ids) || unit_ids.length === 0) {
+    return validationError('unit_ids is a required non-empty array');
+  };
+  console.log('Validation passed. Proceeding to database logic...');
+
+  const sql = neon(process.env.DATABASE_URL);
+  let gameId;
+
   try {
-    const { encounter_id, patch, notes, unit_ids, hack_ids } = req.body;
+    await sql`BEGIN`;
+    console.log('BEGIN transaction');
+    // await sql.transaction(async sqlTx => {
+      try {
 
-    if (!encounter_id || !patch || !unit_ids) {
-      return res.status(400).json({ 
-        error: 'encounter_id, patch, and unit_ids are required'
-      });
-    };
+      // insert into games table
+      const gameRes = await sql`
+        INSERT INTO games (encounter_id, patch, notes)
+        VALUES (${encounter_id}, ${patch}, ${notes})
+        RETURNING game_id
+      `;
+      gameId = gameRes[0].game_id;
 
-    if (!Array.isArray(unit_ids)) {
-      return res.status(400).json({
-        error: 'unit_ids must be an array'
-      });
-    };
-
-    if (hack_ids && !Array.isArray(hack_ids)) {
-      return res.status(400).json({
-        error: 'hack_ids must be an array'
-      });
-    };
-
-    const sql = neon(process.env.DATABASE_URL);
-
-    // 1. Insert into games table
-    const gameResponse = await sql`
-      INSERT INTO games (encounter_id, patch, notes)
-      VALUES (${encounter_id}, ${patch}, ${notes})
-      RETURNING game_id
-    `;
-    const gameId = gameResponse[0].game_id;
-
-    // 2. Insert into game_units table
-    for (const unit_id of unit_ids) {
+      // insert into game_units table
+      const unitValues = unit_ids.map(
+        unitId => sql`(${gameId}, ${unitId})`
+      );
       await sql`
         INSERT INTO game_units (game_id, unit_id)
-        VALUES (${gameId}, ${unit_id})
+        VALUES ${sql.join(unitValues, ', ')}
       `;
-    };
+      console.log(`Inserted ${unit_ids.length} rows into game_units for game ${gameId}`);
 
-    // 3. Insert into game_hacks table
-    for (const hack_id of hack_ids) {
+      // insert into game_hacks table
+      const hackValues = hack_ids.map(
+        hackId => sql`(${gameId}, ${hackId})`
+      );
       await sql`
-      INSERT INTO game_hacks (game_id, hack_id)
-      VALUES (${gameId}, ${hack_id})
-    `;
-    };
-
-    // 4. Find the traits that were in this game
-    const compiledTraits = {};
-    for (const unit_id of unit_ids) {
-      const unitTraitsResponse = await sql`
-        SELECT trait_id FROM unit_traits WHERE unit_id = ${unit_id}
+        INSERT INTO game_hacks (game_id, hack_id)
+        VALUES ${sql.join(hackValues, ', ')}
       `;
-      unitTraitsResponse.forEach(trait => {
-        const traitId = trait.trait_id;
-        compiledTraits[traitId] = (compiledTraits[traitId] || 0) + 1;
-      });
-    };
+      console.log(`Inserted ${hack_ids.length} rows into game_hacks for game ${gameId}`);
 
-    // 5. Find the breakpoints for each trait
-    for (const trait_id of Object.keys(compiledTraits)) {
-      const traitBreakpointResponse = await sql`
-        SELECT breakpoint_id, breakpoint_value FROM trait_breakpoints WHERE trait_id = ${trait_id}
-        ORDER BY breakpoint_value DESC
+      // insert into game_augments table
+      const augmentValues = augments.map(
+        augment => sql`(${gameId}, ${augment.augment_id}, ${augment.game_stage})`
+      );
+      await sql`
+        INSERT INTO game_augments (game_id, augment_id, game_stage)
+        VALUES ${sql.join(augmentValues, ', ')}
+      `;
+      console.log(`Inserted ${augments.length} rows into game_augments for game ${gameId}`);
+
+      // insert into game_trait_breakpoints table
+      const unitTraitsRes = await sql`
+        SELECT trait_id
+        FROM unit_traits
+        WHERE unit_id = ANY(${unit_ids})
+      `;
+      const traitCounts = {};
+      unitTraitsRes.forEach(unitTrait => {
+        traitCounts[unitTrait.trait_id] = (traitCounts[unitTrait.trait_id] || 0) + 1;
+      });
+      const activeTraitIds = Object.keys(traitCounts).map(id => parseInt(id));
+      const breakpointsRes = await sql`
+        SELECT breakpoint_id, trait_id, breakpoint_value
+        FROM trait_breakpoints
+        WHERE trait_id = ANY(${activeTraitIds})
+        ORDER BY trait_id, breakpoint_value DESC
+      `;
+      const activeBreakpointIds = [];
+      for (const traitId of activeTraitIds) {
+        const currentTraitCount = traitCounts[traitId];
+        const activeBreakpoint = breakpointsRes.find(breakpoint => {
+          return breakpoint.trait_id === traitId && currentTraitCount >= breakpoint.breakpoint_value;
+        });
+        if (activeBreakpoint) {
+          activeBreakpointIds.push(activeBreakpoint.breakpoint_id);
+        };
+      };
+      const breakpointValues = activeBreakpointIds.map(breakpointId => {
+        return sql`(${gameId}, ${breakpointId})`
+      });
+      await sql`
+        INSERT INTO game_trait_breakpoints (game_id, breakpoint_id)
+        VALUES ${sql.join(breakpointValues, ', ')}
       `;
 
-      let highestBreakpointId = null;
-      traitBreakpointResponse.forEach(breakpoint => {
-        if (compiledTraits[trait_id] >= breakpoint.breakpoint_value) {
-          highestBreakpointId = breakpoint.breakpoint_id;
-        }
-      });
+      // commit if all successful
+      await sql`COMMIT`
+      console.log('COMMIT transaction successful');
 
-      // 6. Insert the breakpoints achieved for the game
-      if (highestBreakpointId) {
-        await sql`
-          INSERT INTO game_trait_breakpoints (game_id, breakpoint_id)
-          VALUES (${gameId}, ${highestBreakpointId})
-        `;
+    } catch (transactionError) {
+      // transaction failed
+      console.error('Error DURING transaction, attempting rollback:', transactionError);
+      try {
+        await sql`ROLLBACK`;
+        console.log('ROLLBACK successful');
+      } catch (rollbackError) {
+        console.error('FATAL: Failed to rollback transaction:', rollbackError);
       }
-    };
+      throw transactionError;
+    }
 
-    // Completion!
+    // transaction succeeded
     res.status(201).json({
       game_id: gameId,
-      message: 'Game added successfully'
+      message: 'Game and all associated data added successfully!'
     });
+
   } catch (error) {
+    // error from BEGIN, COMMIT, or re-thrown transaction
     console.error('Error adding game:', error);
-    res.status(500).json({
-      error: 'Failed to add game'
-    });
+    res.status(500).json({ error: 'Failed to add game' });
   }
 });
 
