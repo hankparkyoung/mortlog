@@ -71,33 +71,30 @@ router.post('/', async (req, res) => {
       gameId = gameRes[0].game_id;
 
       // insert into game_units table
-      const unitValues = unit_ids.map(
-        unitId => sql`(${gameId}, ${unitId})`
-      );
-      await sql`
-        INSERT INTO game_units (game_id, unit_id)
-        VALUES ${sql.join(unitValues, ', ')}
-      `;
+      for (const unitId of unit_ids) {
+        await sql`
+          INSERT INTO game_units (game_id, unit_id)
+          VALUES (${gameId}, ${unitId})
+        `;
+      }
       console.log(`Inserted ${unit_ids.length} rows into game_units for game ${gameId}`);
 
       // insert into game_hacks table
-      const hackValues = hack_ids.map(
-        hackId => sql`(${gameId}, ${hackId})`
-      );
-      await sql`
-        INSERT INTO game_hacks (game_id, hack_id)
-        VALUES ${sql.join(hackValues, ', ')}
-      `;
+      for (const hackId of hack_ids) {
+        await sql`
+          INSERT INTO game_hacks (game_id, hack_id)
+          VALUES (${gameId}, ${hackId})
+        `;
+      }
       console.log(`Inserted ${hack_ids.length} rows into game_hacks for game ${gameId}`);
 
       // insert into game_augments table
-      const augmentValues = augments.map(
-        augment => sql`(${gameId}, ${augment.augment_id}, ${augment.game_stage})`
-      );
-      await sql`
-        INSERT INTO game_augments (game_id, augment_id, game_stage)
-        VALUES ${sql.join(augmentValues, ', ')}
-      `;
+      for (const augment of augments) {
+        await sql`
+          INSERT INTO game_augments (game_id, augment_id, game_stage)
+          VALUES (${gameId}, ${augment.augment_id}, ${augment.game_stage})
+        `;
+      }
       console.log(`Inserted ${augments.length} rows into game_augments for game ${gameId}`);
 
       // insert into game_trait_breakpoints table
@@ -127,13 +124,13 @@ router.post('/', async (req, res) => {
           activeBreakpointIds.push(activeBreakpoint.breakpoint_id);
         };
       };
-      const breakpointValues = activeBreakpointIds.map(breakpointId => {
-        return sql`(${gameId}, ${breakpointId})`
-      });
-      await sql`
-        INSERT INTO game_trait_breakpoints (game_id, breakpoint_id)
-        VALUES ${sql.join(breakpointValues, ', ')}
-      `;
+      for (const breakpointId of activeBreakpointIds) {
+        await sql`
+          INSERT INTO game_trait_breakpoints (game_id, breakpoint_id)
+          VALUES (${gameId}, ${breakpointId})
+        `;
+      }
+      console.log(`Inserted ${activeBreakpointIds.length} rows into game_trait_breakpoints for game ${gameId}`);
 
       // commit if all successful
       await sql`COMMIT`
