@@ -2,14 +2,83 @@ import express from 'express';
 import { neon } from '@neondatabase/serverless';
 const router = express.Router();
 
-router.get('/', async (_, res) => {
+// router.get('/', async (_, res) => {
+//   try {
+//     const sql = neon(process.env.DATABASE_URL);
+//     const response = await sql`SELECT * FROM games`;
+//     res.json(response);
+//   } catch (error) {
+//     console.error('Error getting games:', error);
+//     res.status(500).json({ error: 'Failed to get games' });
+//   }
+// });
+
+router.get('/', async (req, res) => {
+  const { patch } = req.query;
+  console.log(`PATCH: ${patch}, TYPE: ${typeof patch}`);
   try {
     const sql = neon(process.env.DATABASE_URL);
-    const response = await sql`SELECT * FROM games`;
+    const response = await sql`
+      SELECT
+        g.game_id,
+        g.patch,
+        g.notes,
+        e.encounter_name,
+        JSON_AGG(
+          DISTINCT jsonb_build_object(
+            'name', u.unit_name,
+            'cost', u.cost
+          )) AS units,
+        JSON_AGG(
+          DISTINCT h.hack_name
+          ) AS hacks,
+        JSON_AGG(
+          DISTINCT jsonb_build_object(
+            'name', a.augment_name,
+            'stage', ga.game_stage
+          )) AS augments,
+        JSON_AGG(
+          DISTINCT jsonb_build_object(
+            'name', t.trait_name,
+            'breakpoint', tb.breakpoint_value,
+            'tier', tb.breakpoint_tier
+          )) AS trait_breakpoints
+      FROM
+        games g
+      LEFT JOIN
+        game_trait_breakpoints gtb ON g.game_id = gtb.game_id
+      LEFT JOIN
+        trait_breakpoints tb ON gtb.breakpoint_id = tb.breakpoint_id
+      LEFT JOIN
+        traits t ON tb.trait_id = t.trait_id
+      LEFT JOIN
+        game_augments ga ON g.game_id = ga.game_id
+      LEFT JOIN
+        augments a ON ga.augment_id = a.augment_id
+      LEFT JOIN
+        game_hacks gh ON g.game_id = gh.game_id
+      LEFT JOIN
+        hacks h ON gh.hack_id = h.hack_id
+      LEFT JOIN
+        encounters e ON g.encounter_id = e.encounter_id
+      LEFT JOIN
+        game_units gu ON g.game_id = gu.game_id
+      LEFT JOIN
+        units u ON gu.unit_id = u.unit_id
+      WHERE
+        g.patch = ${patch}
+      GROUP BY
+        g.game_id,
+        g.patch,
+        g.notes,
+        e.encounter_name
+      ORDER BY
+        g.game_id DESC
+    `;
     res.json(response);
   } catch (error) {
-    console.error('Error getting games:', error);
-    res.status(500).json({ error: 'Failed to get games' });
+    console.error('Error getting games by patch:', error);
+    res.status(500).json({ error: 'Failed to get games by patch' });
   }
 });
 
